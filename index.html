@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>日常生活痛点与需求调查问卷</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #f2f4f8;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.5;
+            padding: 24px 16px;
+            color: #1e2a3e;
+        }
+
+        /* 问卷卡片容器 */
+        .survey-container {
+            max-width: 880px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 28px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            padding: 28px 24px 40px;
+        }
+
+        /* 卷首语区域 */
+        .hero {
+            margin-bottom: 32px;
+            border-bottom: 1px solid #e6edf4;
+            padding-bottom: 20px;
+        }
+
+        .hero h1 {
+            font-size: 1.9rem;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            background: linear-gradient(135deg, #1f4870, #2c6e9e);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin-bottom: 12px;
+        }
+
+        .hero p {
+            color: #4a627a;
+            font-size: 0.95rem;
+            background: #f8fafd;
+            padding: 14px 18px;
+            border-radius: 20px;
+            line-height: 1.5;
+            margin-top: 8px;
+        }
+
+        /* 问题区块通用 */
+        .question-block {
+            margin-bottom: 32px;
+            border-radius: 20px;
+            background: #ffffff;
+            transition: all 0.1s ease;
+        }
+
+        .question-title {
+            font-weight: 600;
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            flex-wrap: wrap;
+            color: #0f2b3d;
+        }
+
+        .q-num {
+            background: #dce9f5;
+            color: #1e5a7d;
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 2px 10px;
+            border-radius: 40px;
+            letter-spacing: 0.3px;
+        }
+
+        .q-text {
+            flex: 1;
+        }
+
+        /* 选项区域 */
+        .options-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-left: 8px;
+        }
+
+        .option {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            background: #fbfdff;
+            padding: 8px 12px;
+            border-radius: 16px;
+            transition: background 0.1s;
+            cursor: pointer;
+            border: 1px solid #eef2f8;
+        }
+
+        .option:hover {
+            background: #f0f6fe;
+            border-color: #cbdde9;
+        }
+
+        input[type="radio"], input[type="checkbox"] {
+            margin-top: 3px;
+            width: 18px;
+            height: 18px;
+            accent-color: #2c7cb6;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .option label {
+            font-size: 0.95rem;
+            color: #1f3b4c;
+            line-height: 1.4;
+            flex: 1;
+            cursor: pointer;
+        }
+
+        /* 多选题特殊说明 */
+        .multi-hint {
+            font-size: 0.75rem;
+            color: #7c8f9f;
+            margin-top: 6px;
+            margin-left: 30px;
+            margin-bottom: 4px;
+        }
+
+        hr {
+            margin: 20px 0 12px;
+            border: none;
+            border-top: 1px solid #e9eef3;
+        }
+
+        /* 提交按钮 */
+        .submit-area {
+            margin-top: 40px;
+            text-align: center;
+        }
+
+        .submit-btn {
+            background: #1f5e8e;
+            border: none;
+            padding: 14px 32px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            width: auto;
+            min-width: 180px;
+            letter-spacing: 0.5px;
+        }
+
+        .submit-btn:hover {
+            background: #0f456b;
+            transform: scale(0.98);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        /* 结果toast提示 */
+        .toast-msg {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e2f3c;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+            z-index: 999;
+            white-space: nowrap;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        @media (max-width: 640px) {
+            .survey-container {
+                padding: 20px 18px;
+            }
+            .question-title {
+                font-size: 1rem;
+            }
+            .option label {
+                font-size: 0.88rem;
+            }
+            .toast-msg {
+                white-space: normal;
+                text-align: center;
+                max-width: 85%;
+                font-size: 0.8rem;
+            }
+        }
+
+        footer {
+            text-align: center;
+            font-size: 0.7rem;
+            color: #9aaebf;
+            margin-top: 32px;
+            border-top: 1px solid #eef2f8;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="survey-container">
+    <div class="hero">
+        <h1>📋 日常解忧研究所</h1>
+        <p>✨ 你好！这是一份完全匿名的调查，大约需要3-4分钟。我们想了解你在日常生活中遇到的各种小烦恼——比如吃什么、人际关系、心情调节这些事。你的回答可能会变成未来某个实用工具的灵感来源。请放心填写，没有对错。</p>
+    </div>
+
+    <form id="surveyForm">
+        <!-- ========= 一、日常决定与生活琐事 ========= -->
+        <div class="question-block">
+            <div class="question-title"><span class="q-num">1</span><span class="q-text">在日常生活里，做哪些“小决定”最让你纠结浪费时间？（多选）</span></div>
+            <div class="options-group" id="q1_group">
+                <div class="option"><input type="checkbox" name="q1" value="A"> <label>A. 今天吃什么（外卖/自己做/食堂），选半天定不下来</label></div>
+                <div class="option"><input type="checkbox" name="q1" value="B"> <label>B. 穿什么衣服出门，搭配纠结很久</label></div>
+                <div class="option"><input type="checkbox" name="q1" value="C"> <label>C. 休息时间干什么，刷手机很久也没决定</label></div>
+                <div class="option"><input type="checkbox" name="q1" value="D"> <label>D. 该不该买某个东西，反复比价下不了决心</label></div>
+                <div class="option"><input type="checkbox" name="q1" value="E"> <label>E. 以上都没有，我做决定很干脆</label></div>
+            </div>
+        </div>
+
+        <div class="question-block">
+            <div class="question-title"><span class="q-num">2</span><span class="q-text">关于“今天吃什么”这件事，你的真实状态是？（单选）</span></div>
+            <div class="options-group">
+                <div class="option"><input type="radio" name="q2" value="A"> <label>A. 每天都纠结，翻半天外卖App还是不知道点啥</label></div>
+                <div class="option"><input type="radio" name="q2" value="B"> <label>B. 想吃健康点，但不知道怎么做、怎么搭配</label></div>
+                <div class="option"><input type="radio" name="q2" value="C"> <label>C. 想省钱自己做，但一想到买菜备菜洗碗就放弃了</label></div>
+                <div class="option"><input type="radio" name="q2" value="D"> <label>D. 有什么吃什么，不纠结</label></div>
+            </div>
+        </div>
+
+        <div class="question-block">
+            <div class="question-title"><span class="q-num">3</span><span class="q-text">日常家务和生活维护中，最让你头疼的是什么？（单选）</span></div>
+            <div class="options-group">
+                <div class="option"><input type="radio" name="q3" value="A"> <label>A. 打扫整理，总是拖到看不下去才动手</label></div>
+                <div class="option"><input type="radio" name="q3" value="B"> <label>B. 记住各种琐事（缴水电费、取快递、关续费），经常忘记</label></div>
+                <div class="option"><input type="radio" name="q3" value="C"> <label>C. 家里东西坏了不知道找谁修、怎么修、大概多少钱不被坑</label></div>
+                <div class="option"><input type="radio" name="q3" value="D"> <label>D. 换季整理衣物、断舍离，下不了决心扔东西</label></div>
+                <div class="option"><input type="radio" name="q3" value="E"> <label>E. 没什么头疼的</label></div>
+            </div>
+        </div>
+
+        <div class="question-block">
+            <div class="question-title"><span class="q-num">4</span><span class="q-text">你的作息和健康习惯，符合以下哪种情况？（单选）</span></div>
+            <div class="options-group">
+                <div class="option"><input type="radio" name="q4" value="A"> <label>A. 想早睡但每晚都忍不住熬夜，第二天又后悔</label></div>
+                <div class="option"><input type="radio" name="q4" value="B"> <label>B. 想坚持运动，但每次都三分钟热度</label></div>
+                <div class="option"><input type="radio" name="q4" value="C"> <label>C. 想戒掉手机/短视频，但根本控制不住</label></div>
+                <div class="option"><input type="radio" name="q4" value="D"> <label>D. 作息规律、习惯良好，没有这个问题</label></div>
+            </div>
+        </div>
+
+        <!-- ========= 二、人际与沟通 ========= -->
+        <div class="question-block">
+            <div class="question-title"><span class="q-num">5</span><span class="q-text">在人际交往中，哪类场景最容易让你事后反复琢磨、感到内耗？（单选）</span></div>
+            <div class="options-group">
+                <div class="option"><input type="radio" name="q5" value="A"> <label>A. 想拒绝别人（借钱、帮忙、无效社交），但话到嘴边说不出口</label></div>
+                <div class="option"><input type="radio" name="q5" value="B"> <label>B. 线上聊天字斟句酌，发完还要反复检查，怕说错话得罪人</label></div>
+                <div class="option"><input type="radio" name="q5" value="C"> <label>C. 和朋友/伴侣吵架后，不知道怎么开口破冰</label></div>
+                <div class="option"><input type="radio" name="q5" value="D"> <label>D. 被冒犯或调侃时，当下反应不过来，事后越想越气</label></div>
+            </div>
+        </div>
+
+        <div class="question-block">
+            <div class="question-title"><span class="q-num">6</span><span class="q-text">和父母/长辈沟通时，你的真实感受是？（单选）</span></div>
+            <div class="options-group">
+                <div class="option"><input type="radio" name="q6" value="A"> <label>A. 他们总是不理解我，说不了几句就想吵</label></div>
+                <div class="option"><input type="radio" name="q6" value="B"> <label>B. 我知道他们为我好，但表达方式让人窒息</label></div>
+                <div class="option"><input type="radio" name="q6" value="C"> <label>C. 基本不沟通，能少说就少说</label></div>
+                <div class="option"><input type="radio" name="q6" value="D"> <label>D. 沟通顺畅，没有这个烦恼</label></div>
+            </div>
+        </div>
+
+        <div class="question-block">
+            <div class="question-title"><span class="q-num">7</span><span class="q-text">在社交场合中，以下哪种情况最让你不适？（单选）</span></div>
+            <div class="options-group">
+                <div class="option"><input type="radio" name="q7" value="A"> <label>A. 人多的聚会不知道聊什么，只想躲角落看手机</label></div>
+                <div class="option"><input type="radio" name="q7" value="B"> <label>B. 和不熟的人独处（如拼车、电梯），空气突然安静很尴尬</label></div>
+                <div class="option"><input type="radio" name="q7" value="C"> <label>C. 饭桌上被Cue敬酒或说两句，只想消失</label></div>
+                <div class="option"><input type="radio" name="q7" value="D"> <label>D. 都还好，我不太社恐</label></div>
+            </div>
+        </div>
+
+        <div class="question-block">
+            <div class="question-title"><span class="q-num">8</span><span class="q-text">如果有一个工具能在你开口前帮你“预演对话”或“组织表达”，你最想用在哪个场景？（单选）</span></div>
+            <div class="options-group">
+                <div class="option"><input type="radio" name="q8" value="A"> <label>A. 拒绝别人，委婉但不失边界</label></div>
+                <div class="option"><input type="radio" name="q8" value="B"> <label>B. 和父母/老师/上司谈一件严肃的事</label></div>
+                <div class="option"><input type="radio" name="q8" value="C"> <label>C. 吵架后发一条和好的消息</label></div>
+                <div class="option"><input type="radio" name="q8" value="D"> <label>D. 公开场合临时发言或自我介绍</label></div>
+            </div>
+        </div>
+
+        <!-- ========= 三、情绪与心态调整 ========= -->
+        <div class="question-block">
+            <div class="question-title"><span class="q-num">9</span><span class="q-text">当你感到不开心、低落或焦虑时，通常是因为什么？（多选）</span></div>
+            <div class="options-group" id="q9_group">
+                <div class="option"><input type="checkbox" name="q9" value="A"> <label>A. 被身边人拿来和别人比较，感觉自己不够好</label></div>
+                <div class="option"><input type="checkbox" name="q9" value="B"> <label>B. 对未来迷茫，不知道努力的方向在哪里</label></div>
+                <div class="option"><input type="checkbox" name="q9" value="C"> <label>C. 做错了事或说了不该说的话，反复自责</label></div>
+                <div class="option"><input type="checkbox" name="q9" value="D"> <label>D. 感觉别人都在前进，只有自己原地踏步</label></div>
+                <div class="option"><input type="checkbox" name="q9" value="E"> <label>E. 没什么特别原因，就是突然情绪上来了</label></div>
+            </div>
+        </div>
+
+        <div class="question-block">
+            <div class="question-title"><span class="q-num">10</span><span class="q-text">你通常用什么方式消化负面情绪？（单选）</span></div>
+            <div class="options-group">
+                <div class="option"><input type="radio" name="q10" value="A"> <label>A. 自己消化，听歌、刷视频、打游戏转移注意力</label></div>
+                <div class="option"><input type="radio" name="q10" value="B"> <label>B. 找朋友或家人倾诉</label></div>
+                <div class="option"><input type="radio" name="q10" value="C"> <label>C. 写日记或备忘录，把想法写出来</label></div>
+                <div class="option"><input type="radio" name="q10" value="D"> <label>D. 想找方法调节（如冥想、运动），但不知道从哪里开始</label></div>
+            </div>
+        </div>
+
+        <div class="question-block">
+            <div class="question-title"><span class="q-num">11</span><span class="q-text">以下哪种“情绪急救”功能，你觉得最可能用得上？（单选）</span></div>
+            <div class="options-group">
+                <div class="option"><input type="radio" name="q11" value="A"> <label>A. 极度生气或焦虑时，有一个引导我快速平复下来的语音工具</label></div>
+                <div class="option"><input type="radio" name="q11" value="B"> <label>B. 在我自责或自我否定时，用心理学角度帮我客观看待事情</label></div>
+                <div class="option"><input type="radio" name="q11" value="C"> <label>C. 帮我回顾今天发生了什么事，梳理情绪的来源</label></div>
+                <div class="option"><input type="radio" name="q11" value="D"> <label>D. 给我一句刚好戳中当下的安慰或鼓励</label></div>
+            </div>
+        </div>
+
+        <div class="question-block">
+            <div class="question-title"><span class="q-num">12</span><span class="q-text">你希望手机在你心情不好的时候，主动做点什么吗？（单选）</span></div>
+            <div class="options-group">
+                <div class="option"><input type="radio" name="q12" value="A"> <label>A. 希望它能察觉，并默默推一首歌、一张图或一段话</label></div>
+                <div class="option"><input type="radio" name="q12" value="B"> <label>B. 不希望被察觉，我主动打开时才需要帮助</label></div>
+                <div class="option"><input type="radio" name="q12" value="C"> <label>C. 无所谓，没想过这个问题</label></div>
+            </div>
+        </div>
+
+        <!-- ========= 四、任务执行与拖延 ========= -->
+        <div class="question-block">
+            <div class="question-title"><span class="q-num">13</span><span class="q-text">在完成需要集中精力的任务时（学习/工作），你的状态是？（单选）</span></div>
+            <div class="options-group">
+                <div class="option"><input type="radio" name="q13" value="A"> <label>A. 总是拖到Deadline，前面大把时间在焦虑地玩</label></div>
+                <div class="option"><input type="radio" name="q13" value="B"> <label>B. 开始前需要很长的心理建设，总觉得没准备好</label></div>
+                <div class="option"><input type="radio" name="q13" value="C"> <label>C. 很容易被手机消息或周围环境打断，半天进不了状态</label></div>
+                <div class="option"><input type="radio" name="q13" value="D"> <label>D. 我能较好地进入状态，不太拖延</label></div>
+            </div>
+        </div>
+
+        <div class="question-block">
+            <div class="question-title"><span class="q-num">14</span><span class="q-text">你曾尝试用什么方法对抗拖延？（多选）</span></div>
+            <div class="options-group" id="q14_group">
+                <div class="option"><input type="checkbox" name="q14" value="A"> <label>A. 番茄钟、Forest等计时工具</label></div>
+                <div class="option"><input type="checkbox" name="q14" value="B"> <label>B. 把手机放远或锁起来</label></div>
+                <div class="option"><input type="checkbox" name="q14" value="C"> <label>C. 写To-do List，但完成了也不怎么有成就感</label></div>
+                <div class="option"><input type="checkbox" name="q14" value="D"> <label>D. 找人互相监督打卡</label></div>
+                <div class="option"><input type="checkbox" name="q14" value="E"> <label>E. 没试过什么方法，直接摆烂</label></div>
+            </div>
+        </div>
+
+        <!-- ========= 五、背景与习惯 ========= -->
+        <div class="question-block">
+            <div class="question-title"><span class="q-num">15</span><span class="q-text">你目前所处的阶段是？（单选）</span></div>
+            <div class="options-group">
+                <div class="option"><input type="radio" name="q15" value="A"> <label>A. 初中</label></div>
+                <div class="option"><input type="radio" name="q15" value="B"> <label>B. 高中</label></div>
+                <div class="option"><input type="radio" name="q15" value="C"> <label>C. 大学（含大专）</label></div>
+                <div class="option"><input type="radio" name="q15" value="D"> <label>D. 已工作（含实习、待业）</label></div>
+                <div class="option"><input type="radio" name="q15" value="E"> <label>E. 其他</label></div>
+            </div>
+        </div>
+
+        <div class="question-block">
+            <div class="question-title"><span class="q-num">16</span><span class="q-text">你对用AI工具解决日常生活问题这件事，第一反应是什么？（单选）</span></div>
+            <div class="options-group">
+                <div class="option"><input type="radio" name="q16" value="A"> <label>A. 很期待，愿意尝试</label></div>
+                <div class="option"><input type="radio" name="q16" value="B"> <label>B. 可以试试，但担心它不理解我</label></div>
+                <div class="option"><input type="radio" name="q16" value="C"> <label>C. 不太信任，觉得人会做得更好</label></div>
+                <div class="option"><input type="radio" name="q16" value="D"> <label>D. 没感觉，没想过</label></div>
+            </div>
+        </div>
+
+        <div class="submit-area">
+            <button type="button" class="submit-btn" id="submitSurvey">📮 提交问卷</button>
+        </div>
+        <footer>匿名反馈 · 感谢你的分享，每个答案都是灵感的种子 🌱</footer>
+    </form>
+</div>
+<div id="toastMsg" class="toast-msg"></div>
+
+<script>
+    (function() {
+        const form = document.getElementById('surveyForm');
+        const submitBtn = document.getElementById('submitSurvey');
+        const toast = document.getElementById('toastMsg');
+
+        function showMessage(msg, duration = 2500) {
+            toast.textContent = msg;
+            toast.style.opacity = '1';
+            setTimeout(() => {
+                toast.style.opacity = '0';
+            }, duration);
+        }
+
+        // 辅助收集单选值
+        function getRadioValue(name) {
+            const radios = document.querySelectorAll(`input[name="${name}"]`);
+            for(let radio of radios) {
+                if(radio.checked) return radio.value;
+            }
+            return null;
+        }
+
+        // 收集多选值 (checkbox组)
+        function getCheckboxValues(name) {
+            const checkboxes = document.querySelectorAll(`input[name="${name}"]:checked`);
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        // 验证某些关键单选是否填写 (全部16题里 q1/q9/q14 是多选，其余单选或选多)
+        // 要求：除了多选问题，其余所有单选必须有值。 多选可以为空，但为了体验提醒
+        function validateComplete() {
+            const radioNames = ['q2','q3','q4','q5','q6','q7','q8','q10','q11','q12','q13','q15','q16'];
+            let missing = [];
+            for(let name of radioNames) {
+                if(!getRadioValue(name)) {
+                    missing.push(name);
+                }
+            }
+            // 额外检查 q1 q9 q14 虽是多选，但是可以没选，不做强制，但为了问卷完整性最多提醒
+            if(missing.length > 0) {
+                const mapLabel = {
+                    'q2':'第2题(吃什么状态)','q3':'第3题(家务头疼)','q4':'第4题(作息健康)',
+                    'q5':'第5题(人际内耗)','q6':'第6题(父母沟通)','q7':'第7题(社交不适)',
+                    'q8':'第8题(预演对话)','q10':'第10题(消化情绪)','q11':'第11题(情绪急救)',
+                    'q12':'第12题(手机主动)','q13':'第13题(任务状态)','q15':'第15题(所处阶段)',
+                    'q16':'第16题(AI工具态度)'
+                };
+                let firstMissing = mapLabel[missing[0]] || missing[0];
+                showMessage(`请完成 ${firstMissing} 的选择 (单选未填)`, 2800);
+                return false;
+            }
+            return true;
+        }
+
+        // 收集所有答案并展示（控制台模拟提交，同时toast提示成功，实际可拓展后端）
+        function gatherResults() {
+            // 获取多选答案
+            const q1_vals = getCheckboxValues('q1');
+            const q9_vals = getCheckboxValues('q9');
+            const q14_vals = getCheckboxValues('q14');
+
+            // 获取所有单选答案
+            const answers = {
+                q1: q1_vals.length ? q1_vals : [],
+                q2: getRadioValue('q2'),
+                q3: getRadioValue('q3'),
+                q4: getRadioValue('q4'),
+                q5: getRadioValue('q5'),
+                q6: getRadioValue('q6'),
+                q7: getRadioValue('q7'),
+                q8: getRadioValue('q8'),
+                q9: q9_vals.length ? q9_vals : [],
+                q10: getRadioValue('q10'),
+                q11: getRadioValue('q11'),
+                q12: getRadioValue('q12'),
+                q13: getRadioValue('q13'),
+                q14: q14_vals.length ? q14_vals : [],
+                q15: getRadioValue('q15'),
+                q16: getRadioValue('q16')
+            };
+            return answers;
+        }
+
+        // 提交处理 (模拟收集，可打印到控制台并显示成功)
+        function handleSubmit() {
+            if(!validateComplete()) return;
+
+            const results = gatherResults();
+            // 展示提交成功的信息，并在控制台展示完整数据（便于开发者/产品模拟）
+            console.log('===== 问卷结果 =====');
+            console.log(JSON.stringify(results, null, 2));
+            // 额外整理可读展示（调试友好）
+            let summary = `已收到你的反馈！ 选择摘要: 纠结小决定 (${results.q1.join(',')||'无'})； 饮食状态:${results.q2}； 拖延尝试:${results.q14.join(',')||'未选'}`;
+            showMessage(`✅ 问卷已提交！感谢参与，你的反馈很重要～`, 2800);
+            // 可选：后续可以增加实际发送后端逻辑，目前纯前端demo
+            // 如果想清空或保留作答可保留。此处不清空方便查看，但为了用户体验不重置，只是提示。
+            // 如果需要，可增加重置但尊重用户已填内容，不做强制清除
+        }
+
+        submitBtn.addEventListener('click', handleSubmit);
+
+        // 让label点击时自动触发对应input (通过结构已经包裹option用label+input，但防止区域点击bug)
+        // 增加一点辅助：整个option点击时关联内部的input
+        const allOptions = document.querySelectorAll('.option');
+        allOptions.forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                // 防止点到内部label或者input重复触发
+                const inp = opt.querySelector('input');
+                if(inp && e.target.tagName !== 'INPUT' && e.target.tagName !== 'LABEL') {
+                    if(inp.type === 'radio' || inp.type === 'checkbox') {
+                        inp.checked = !inp.checked;
+                        // 如果是radio, 需要确保同name其他自动取消，但浏览器原生行为需手动触发? 让原生click更安全
+                        // 为了稳妥，不重复模拟，因为radio组在手动点击时最好直接让input click，避免奇怪逻辑
+                        // 更好的办法是触发input.click()
+                        inp.click();
+                    }
+                }
+            });
+        });
+    })();
+</script>
+</body>
+</html>
