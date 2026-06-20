@@ -622,10 +622,13 @@ body::after {
     </div>
     <div class="modal-body">
       <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:4px;">
-        🎉 感谢你的参与！你的回答已自动保存。
+        🎉 感谢你的参与！你的回答已保存。
       </p>
-      <p style="font-size:0.82rem;color:var(--text-hint);margin-bottom:10px;">
-        可前往 <a href="dashboard.html" style="color:var(--accent-purple);font-weight:500;">📊 数据看板</a> 查看统计结果。
+      <p id="apiStatus" style="font-size:0.82rem;margin-bottom:10px;">
+        <span style="color:#ffb74d;">⏳ 正在同步到服务器…</span>
+      </p>
+      <p style="font-size:0.8rem;color:var(--text-hint);margin-bottom:0;">
+        数据同时保留在浏览器本地，<br>即使服务器不可用也不会丢失。
       </p>
       <pre id="resultJson" style="display:none;"></pre>
     </div>
@@ -832,6 +835,10 @@ const QUESTIONS = [
 ];
 
 const TOTAL_QUESTIONS = QUESTIONS.length; // 16
+
+// ===== 后端 API 配置 =====
+// 部署后改为你的 Render/Railway 后端地址
+const API_BASE_URL = 'http://localhost:3000';
 
 /* ============================================================
    状态管理
@@ -1143,12 +1150,44 @@ function submitAll() {
   state.accumulatedSeconds = totalSec;
   saveState(state);
 
-  // 显示弹窗
-  document.getElementById('resultJson').textContent = JSON.stringify(resultJSON, null, 2);
+  // 显示正在提交
   document.getElementById('resultModal').style.display = 'flex';
+  document.getElementById('resultJson').textContent = JSON.stringify(resultJSON, null, 2);
+  // 初始状态
+  document.getElementById('apiStatus').innerHTML = '<span style="color:#ffb74d;">⏳ 正在同步到服务器…</span>';
 
-  // 同时存一份完整答案到 LocalStorage（供看板读取）
+  // 同时存一份到 LocalStorage（离线兼容）
   saveSubmissionToLocalStorage(resultJSON);
+
+  // 发送到后端 API
+  submitToServer(resultJSON);
+}
+
+/* ============================================================
+   发送数据到后端 API
+   ============================================================ */
+async function submitToServer(resultJSON) {
+  try {
+    const resp = await fetch(API_BASE_URL + '/api/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(resultJSON),
+    });
+
+    if (resp.ok) {
+      const data = await resp.json();
+      console.log('✅ 已同步到服务器, ID:', data.id);
+      document.getElementById('apiStatus').innerHTML =
+        '<span style="color:#81c784;">✅ 数据已同步到服务器（#' + data.id + '）</span>';
+    } else {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || 'HTTP ' + resp.status);
+    }
+  } catch (e) {
+    console.warn('⚠️ 服务器同步失败（数据仍保留在本地）:', e.message);
+    document.getElementById('apiStatus').innerHTML =
+      '<span style="color:#ffb74d;">⚠️ 服务器暂时不可用，数据已保存在本地</span>';
+  }
 }
 
 /* ============================================================

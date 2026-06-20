@@ -384,11 +384,11 @@ body::before {
   <!-- 汇总卡片 -->
   <div class="summary-row" id="summaryRow"></div>
 
-  <!-- LocalStorage 状态 + 示例数据 -->
+  <!-- LocalStorage 状态 -->
   <div class="ls-card" id="lsCard">
     <span class="ls-dot"></span>
-    <span class="ls-text">正在读取 LocalStorage 数据…</span>
-    <button class="btn-sm" id="btnLoadSample" style="margin-left:auto;" title="生成模拟数据以供测试">🧪 加载示例数据</button>
+    <span class="ls-text">正在连接服务器…</span>
+    <button class="btn-sm" id="btnRefresh" style="margin-left:auto;" title="重新加载数据">🔄 刷新数据</button>
   </div>
 
   <!-- 主导航 Tab -->
@@ -516,6 +516,11 @@ const QUESTIONS = QUESTIONS_FULL.map(q => ({
 // 图表颜色板
 const CHART_COLORS = ['#7c5cbf','#e8738a','#5b8def','#5fc09c','#ffb74d','#f06292','#4db6ac','#ba68c8','#64b5f6','#ff8a65'];
 
+// ===== 后端 API 配置 =====
+// 部署后改为你的 Render/Railway 后端地址
+const API_BASE_URL = 'http://localhost:3000';
+const ADMIN_TOKEN  = 'survey-admin-2026';  // 与后端 ADMIN_TOKEN 一致
+
 /* ============================================================
    3. 全局状态
    ============================================================ */
@@ -537,137 +542,73 @@ function showLoading(){document.getElementById('loadingOverlay').classList.add('
 function hideLoading(){document.getElementById('loadingOverlay').classList.remove('show');}
 
 /* ============================================================
-   5. 数据加载 — 仅 LocalStorage（带诊断日志）
+   5. 数据加载 — 优先从后端 API，失败时回退到 LocalStorage
    ============================================================ */
-function loadFromLocalStorage() {
+async function fetchFromServer() {
   const card=document.getElementById('lsCard');
   const dot=card.querySelector('.ls-dot');
   const text=card.querySelector('.ls-text');
-  console.log('📊 [看板] 开始读取 LocalStorage 数据…');
+
+  console.log('📊 [看板] 尝试从后端 API 拉取数据…');
+  text.textContent='⏳ 正在从服务器加载数据…';
 
   try {
-    const raw=localStorage.getItem('survey_submissions');
-    console.log('   survey_submissions 存在:', !!raw, raw ? '长度='+raw.length : '');
+    const resp=await fetch(`${API_BASE_URL}/api/stats?token=${ADMIN_TOKEN}`,{
+      headers:{'X-Admin-Token':ADMIN_TOKEN}
+    });
 
-    if(raw){
-      const data=JSON.parse(raw);
-      console.log('   解析成功, 类型:', Array.isArray(data)?'array':'other', '条目:', Array.isArray(data)?data.length:'-');
-
-      if(Array.isArray(data)&&data.length>0){
-        const existing=new Set(allSubmissions.map(s=>s.meta?.submittedAt));
-        const fresh=data.filter(s=>!existing.has(s.meta?.submittedAt));
-        console.log('   已有:', existing.size, '条, 新增:', fresh.length, '条');
-
-        fresh.forEach((s,idx)=>{
-          const p=parseSubmission(s);
-          if(p){
-            allSubmissions.push(p);
-          } else {
-            console.warn('   ⚠️ 第'+(idx+1)+'条数据解析失败，格式:', JSON.stringify(s).slice(0,200));
-          }
-        });
-
-        card.classList.add('loaded');
-        text.textContent=`✅ 已加载 ${allSubmissions.length} 条本机提交记录`;
-        console.log('   ✅ 最终加载:', allSubmissions.length, '条有效记录');
-        return fresh.length;
-      } else {
-        console.log('   📭 数据为空或格式不是数组');
-      }
-    } else {
-      console.log('   📭 survey_submissions 键不存在');
+    if(!resp.ok){
+      if(resp.status===401)throw new Error('鉴权失败：管理令牌不匹配，请检查 ADMIN_TOKEN');
+      throw new Error('HTTP '+resp.status);
     }
 
-    card.classList.remove('loaded');
-    text.textContent='📭 暂无提交数据 — 请先填写问卷，或点击右侧「加载示例数据」';
-  }catch(e){
-    console.error('   ❌ 读取异常:', e.message);
-    card.classList.remove('loaded');
-    text.textContent='⚠️ LocalStorage 数据读取失败: ' + e.message;
+    const data=await resp.json();
+    console.log('   ✅ API 返回:', data.meta.totalParticipants, '人,', data.submissions.length, '条记录');
+
+    // 转换 API 数据为内部格式
+    allSubmissions=data.submissions.map(s=>({
+      meta:{submittedAt:s.submittedAt,durationSeconds:s.durationSeconds},
+      parsed:s.parsed,
+    }));
+
+    card.classList.add('loaded');
+    text.textContent=`✅ 已加载 ${allSubmissions.length} 条记录（来自服务器 · ${data.meta.totalParticipants} 人参与）`;
+    return allSubmissions.length;
+
+  } catch(e){
+    console.warn('   ⚠️ API 不可用:', e.message);
+    console.log('   🔄 回退到 LocalStorage…');
+    return loadFromLocalStorageFallback();
   }
-  return 0;
 }
 
-/* ============================================================
-   5b. 生成示例数据（供测试看板功能）
-   ============================================================ */
-function generateSampleData(count=25) {
-  console.log('🧪 生成 ' + count + ' 条模拟问卷数据…');
+// LocalStorage 回退方案
+function loadFromLocalStorageFallback() {
+  const card=document.getElementById('lsCard');
+  const dot=card.querySelector('.ls-dot');
+  const text=card.querySelector('.ls-text');
 
-  // 模拟真实分布：大部分人偏向前几个选项（有痛点），小部分选"没问题"
-  // 加权随机：从概率分布中抽样
-  function weightedPick(weights){
-    const total=weights.reduce((a,b)=>a+b,0);
-    let r=Math.random()*total;
-    for(let i=0;i<weights.length;i++){r-=weights[i];if(r<=0)return i;}
-    return weights.length-1;
-  }
-  function pickMulti(weights, minSel=1, maxSel=3){
-    const selected=[];
-    for(let i=0;i<weights.length;i++){
-      if(Math.random()<weights[i]/(weights.reduce((a,b)=>a+b,0))*4)selected.push(i);
-    }
-    // 保证至少选 minSel 项
-    while(selected.length<minSel){
-      const r=Math.floor(Math.random()*weights.length);
-      if(!selected.includes(r))selected.push(r);
-    }
-    // 限制最多 maxSel 项
-    return selected.slice(0,maxSel);
-  }
-
-  const now=Date.now();
-  const submissions=[];
-
-  for(let n=0;n<count;n++){
-    // 模拟时间分布在过去 7 天内
-    const ts=new Date(now - Math.floor(Math.random()*7*86400*1000)).toISOString();
-    const dur=120+Math.floor(Math.random()*400); // 2-8分钟
-
-    const answers={};
-    QUESTIONS_FULL.forEach(q=>{
-      const section=SECTIONS[q.sectionKey];
-      const opts=q.options;
-      const isMulti=q.type==='multi';
-      const lastIdx=String(opts.length-1);
-
-      if(isMulti){
-        // 多选题：随机选 1-3 项
-        const weights=opts.map((_,i)=>i===lastIdx?1:5); // "以上都没有"概率低
-        const sel=pickMulti(weights,1,3);
-        answers[`Q${q.id}【${section.name}】`]=sel.map(k=>opts[k]);
-        answers[`Q${q.id}_raw`]=sel.map(String);
-        answers[`Q${q.id}_type`]='multi';
-      } else {
-        // 单选题：加权随机，但有一定概率选"没问题"
-        const weights=opts.map((_,i)=>i===lastIdx?2:4);
-        const sel=weightedPick(weights);
-        answers[`Q${q.id}【${section.name}】`]=opts[sel];
-        answers[`Q${q.id}_raw`]=String(sel);
-        answers[`Q${q.id}_type`]='single';
+  try{
+    const raw=localStorage.getItem('survey_submissions');
+    if(raw){
+      const data=JSON.parse(raw);
+      if(Array.isArray(data)&&data.length>0){
+        data.forEach(s=>{
+          const p=parseSubmission(s);
+          if(p)allSubmissions.push(p);
+        });
+        card.classList.add('loaded');
+        text.textContent=`⚠️ 已加载 ${allSubmissions.length} 条本地记录（服务器不可用）`;
+        return allSubmissions.length;
       }
-    });
-
-    submissions.push({
-      meta:{
-        surveyTitle:'日常生活痛点与需求调查问卷',
-        submittedAt:ts,
-        durationSeconds:dur,
-        durationReadable:`${Math.floor(dur/60)}分${dur%60}秒`,
-        totalQuestions:16,
-      },
-      answers,
-    });
+    }
+    card.classList.remove('loaded');
+    text.textContent='📭 暂无数据 — 服务器和本地均无记录';
+  }catch(e){
+    card.classList.remove('loaded');
+    text.textContent='⚠️ 数据加载失败: '+e.message;
   }
-
-  // 存入 LocalStorage
-  const existingRaw=localStorage.getItem('survey_submissions');
-  const existing=existingRaw?JSON.parse(existingRaw):[];
-  const merged=existing.concat(submissions);
-  localStorage.setItem('survey_submissions',JSON.stringify(merged));
-
-  console.log('   示例数据已存入 survey_submissions, 共', merged.length, '条');
-  return submissions;
+  return 0;
 }
 
 function parseSubmission(raw){
@@ -1201,30 +1142,27 @@ function downloadChart(chartId){
 function initDashboard(){
   console.log('📊 [看板] 初始化开始…');
   try {
-    // 绑定示例数据按钮
-    document.getElementById('btnLoadSample').addEventListener('click', ()=>{
-      const btn=document.getElementById('btnLoadSample');
-      btn.textContent='⏳ 生成中…'; btn.disabled=true;
-      const count=25;
-      generateSampleData(count);
-      // 清空已有并重新加载
+    // 绑定刷新按钮
+    document.getElementById('btnRefresh').addEventListener('click', async ()=>{
+      const btn=document.getElementById('btnRefresh');
+      btn.textContent='⏳ 加载中…'; btn.disabled=true;
       allSubmissions=[];
-      loadFromLocalStorage();
+      await fetchFromServer();
       renderSummary();
       switchTab(currentTab);
-      btn.textContent='🧪 加载示例数据';
+      btn.textContent='🔄 刷新数据';
       btn.disabled=false;
-      showToast(`✅ 已生成 ${count} 条模拟数据`);
     });
 
-    // 加载真实数据
-    loadFromLocalStorage();
-    renderSummary();
-    switchTab('insights');
+    // 异步加载数据（优先服务器 → 回退本地）
+    fetchFromServer().then(()=>{
+      renderSummary();
+      switchTab('insights');
+      console.log('📊 [看板] 初始化完成 — 有效记录:', allSubmissions.length);
+      console.log('   - 数据来源: 后端 API (回退 LocalStorage)');
+      console.log('   - 4 大分析模块：洞察 / 交叉分析 / 图表 / 排行榜');
+    });
 
-    console.log('📊 [看板] 初始化完成 — 有效记录:', allSubmissions.length);
-    console.log('   - 4 大分析模块：洞察 / 交叉分析 / 图表 / 排行榜');
-    console.log('   - 点击右上角「加载示例数据」可生成 25 条测试数据');
   } catch(e) {
     console.error('❌ [看板] 初始化异常:', e.message, e.stack);
     document.getElementById('tabContent').innerHTML=
